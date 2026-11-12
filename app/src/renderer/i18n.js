@@ -65,6 +65,11 @@ export const STRINGS = {
     retryHidden: 'הניתוח מוסתר עד שתמצאו מהלך',
     solutionIs: 'הפתרון: {san}',
     startReview: 'התחלת הסקירה',
+    details: 'פרטי המשחק',
+    minutes: 'דקות',
+    seconds: 'שניות',
+    daysPerMove: 'ימים למהלך',
+    marksHint: 'קליק ימני: סימון משבצת · גרירה בקליק ימני: חץ (Shift ירוק, Ctrl כחול, Alt אדום)',
     aboutText:
       'Chess Analyzer Pro היא תוכנה חופשית בקוד פתוח תחת רישיון GNU GPL גרסה 3. התוכנה כוללת את מנוע השחמט Stockfish (רישיון GPLv3), שפותח על ידי קהילת Stockfish. התוכנה אינה קשורה לפרויקט Stockfish הרשמי או ל־Chess.com. כלי הלוח: Colin M.L. Burnett (GPLv2+).',
     aboutNote: 'הניתוח מיועד למשחקים שהסתיימו בלבד, ולא לקבלת עזרה במהלך משחק פעיל.',
@@ -160,6 +165,11 @@ export const STRINGS = {
     retryHidden: 'The analysis is hidden until you find a move',
     solutionIs: 'Solution: {san}',
     startReview: 'Start review',
+    details: 'Game details',
+    minutes: 'min',
+    seconds: 'sec',
+    daysPerMove: 'days per move',
+    marksHint: 'Right-click: mark a square · Right-drag: draw an arrow (Shift green, Ctrl blue, Alt red)',
     aboutText:
       'Chess Analyzer Pro is free, open-source software released under the GNU GPL version 3. It bundles the Stockfish chess engine (GPLv3), developed by the Stockfish community. This program is not affiliated with the official Stockfish project or with Chess.com. Chess pieces: Colin M.L. Burnett (GPLv2+).',
     aboutNote: 'Analysis is intended for finished games only, not for assistance during a game in progress.',

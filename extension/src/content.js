@@ -27,7 +27,7 @@ async function fetchGame(ref) {
   for (const t of types) {
     try {
       const data = await getJson(`https://www.chess.com/callback/${t}/game/${ref.id}`, { credentials: 'include' });
-      if (data && data.game) return { game: data.game, type: t };
+      if (data && data.game) return { game: data.game, players: data.players, type: t };
     } catch (err) {
       lastErr = err;
     }
@@ -61,6 +61,14 @@ async function fetchArchivePgn(game, ref, type) {
   return null;
 }
 
+// Adds a [Name "value"] tag at the end of the PGN header section.
+function addTag(pgn, name, value) {
+  if (new RegExp(`^\\[${name}\\s`, 'm').test(pgn)) return pgn;
+  const i = pgn.search(/\n\s*\n/);
+  const tag = `[${name} "${value}"]`;
+  return i < 0 ? `${tag}\n${pgn}` : `${pgn.slice(0, i)}\n${tag}${pgn.slice(i)}`;
+}
+
 function save(text, name) {
   const url = URL.createObjectURL(new Blob([text], { type: 'application/x-chess-pgn' }));
   const a = document.createElement('a');
@@ -86,7 +94,7 @@ async function onClick(btn) {
   if (!ref) return;
   setState(btn, 'busy', msg('btnWorking'));
   try {
-    const { game, type } = await fetchGame(ref);
+    const { game, players, type } = await fetchGame(ref);
     // Never export a game that is still being played.
     if (!isFinished(game)) {
       setState(btn, 'warn', msg('errUnfinished'));
@@ -95,7 +103,11 @@ async function onClick(btn) {
     const link = `https://www.chess.com/game/${type}/${ref.id}`;
     let pgn = await fetchArchivePgn(game, ref, type);
     if (!pgn) pgn = buildPgn(game, link);
-    save(pgn, fileName(game.pgnHeaders || {}, ref.id));
+    // The side shown at the bottom on Chess.com (your side when it is your game),
+    // so Chess Analyzer Pro opens the board the same way round.
+    const bottom = players && players.bottom && players.bottom.color;
+    if (bottom === 'white' || bottom === 'black') pgn = addTag(pgn, 'Orientation', bottom);
+    save(pgn,fileName(game.pgnHeaders || {}, ref.id));
     setState(btn, 'done', msg('btnDone'));
   } catch (err) {
     setState(btn, 'error', msg('errFailed'));

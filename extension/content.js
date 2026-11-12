@@ -3480,6 +3480,9 @@
   }
   function buildPgn(game, link) {
     const h = { ...game.pgnHeaders };
+    Object.keys(h).forEach((k) => {
+      if (h[k] == null || h[k] === "") delete h[k];
+    });
     const fen = h.FEN && h.FEN !== START ? h.FEN : null;
     delete h.FEN;
     delete h.SetUp;
@@ -3492,9 +3495,23 @@
       tags.FEN = fen;
     }
     if (link) tags.Link = link;
+    if ((!tags.Date || tags.Date === "????.??.??") && game.endTime) {
+      const d = new Date(game.endTime * 1e3);
+      tags.Date = `${d.getUTCFullYear()}.${String(d.getUTCMonth() + 1).padStart(2, "0")}.${String(d.getUTCDate()).padStart(2, "0")}`;
+    }
     const keys = [...order, ...Object.keys(tags).filter((k) => !order.includes(k))];
     const quote = (v) => String(v).replace(/\\/g, "\\\\").replace(/"/g, '\\"');
     const head = keys.map((k) => `[${k} "${quote(tags[k])}"]`).join("\n");
+    const stamps = String(game.moveTimestamps || "").split(",").filter((x) => x !== "").map(Number);
+    const clk = (i) => {
+      const v = stamps[i];
+      if (!Number.isFinite(v)) return "";
+      const sec = v / 10;
+      const h2 = Math.floor(sec / 3600);
+      const m = Math.floor(sec % 3600 / 60);
+      const s = (sec % 60).toFixed(1);
+      return ` {[%clk ${h2}:${String(m).padStart(2, "0")}:${s.padStart(4, "0")}]}`;
+    };
     const sans = chess.history();
     const firstBlack = !!fen && fen.split(" ")[1] === "b";
     let num = fen ? parseInt(fen.split(" ")[5], 10) || 1 : 1;
@@ -3503,7 +3520,7 @@
       const white = firstBlack ? i % 2 === 1 : i % 2 === 0;
       if (white) parts.push(`${num}.`);
       else if (i === 0) parts.push(`${num}...`);
-      parts.push(san);
+      parts.push(san + clk(i));
       if (!white) num++;
     });
     parts.push(tags.Result);
@@ -3548,7 +3565,7 @@ ${lines.join("\n")}
     for (const t of types) {
       try {
         const data = await getJson(`https://www.chess.com/callback/${t}/game/${ref.id}`, { credentials: "include" });
-        if (data && data.game) return { game: data.game, type: t };
+        if (data && data.game) return { game: data.game, players: data.players, type: t };
       } catch (err) {
         lastErr = err;
       }
@@ -3578,6 +3595,14 @@ ${lines.join("\n")}
     }
     return null;
   }
+  function addTag(pgn2, name, value) {
+    if (new RegExp(`^\\[${name}\\s`, "m").test(pgn2)) return pgn2;
+    const i = pgn2.search(/\n\s*\n/);
+    const tag = `[${name} "${value}"]`;
+    return i < 0 ? `${tag}
+${pgn2}` : `${pgn2.slice(0, i)}
+${tag}${pgn2.slice(i)}`;
+  }
   function save(text, name) {
     const url = URL.createObjectURL(new Blob([text], { type: "application/x-chess-pgn" }));
     const a = document.createElement("a");
@@ -3601,7 +3626,7 @@ ${lines.join("\n")}
     if (!ref) return;
     setState(btn, "busy", msg("btnWorking"));
     try {
-      const { game, type } = await fetchGame(ref);
+      const { game, players, type } = await fetchGame(ref);
       if (!isFinished(game)) {
         setState(btn, "warn", msg("errUnfinished"));
         return;
@@ -3609,6 +3634,8 @@ ${lines.join("\n")}
       const link = `https://www.chess.com/game/${type}/${ref.id}`;
       let pgn2 = await fetchArchivePgn(game, ref, type);
       if (!pgn2) pgn2 = buildPgn(game, link);
+      const bottom = players && players.bottom && players.bottom.color;
+      if (bottom === "white" || bottom === "black") pgn2 = addTag(pgn2, "Orientation", bottom);
       save(pgn2, fileName(game.pgnHeaders || {}, ref.id));
       setState(btn, "done", msg("btnDone"));
     } catch (err) {

@@ -212,6 +212,9 @@ function startGame(pgn) {
   }
   state.game = game;
   state.ply = 0;
+  // Show the board from the side of the player who downloaded the game (set by the extension).
+  state.flipped = /^b/i.test(game.headers.Orientation || '');
+  marks.clear();
   resetAnalysis();
   $('welcomeError').hidden = true;
   $('welcome').hidden = true;
@@ -460,32 +463,127 @@ function renderBoard() {
   document.querySelector('.board-wrap').classList.toggle('in-retry', !!state.retry);
 }
 
+// SVG for one arrow on the 8x8 board. Knight jumps are drawn as an L, like on chess sites.
+function arrowSvg(from, to, color, width, opacity, marker) {
+  const [x1, y1] = sqXY(from);
+  const [x2, y2] = sqXY(to);
+  const dx = x2 - x1;
+  const dy = y2 - y1;
+  const knight = (Math.abs(dx) === 1 && Math.abs(dy) === 2) || (Math.abs(dx) === 2 && Math.abs(dy) === 1);
+  const style = `fill="none" stroke="${color}" stroke-width="${width}" stroke-linecap="round" stroke-linejoin="round" opacity="${opacity}" marker-end="url(#${marker})"`;
+  if (knight) {
+    // Go along the long side first, then turn.
+    const cx = Math.abs(dy) === 2 ? x1 : x2;
+    const cy = Math.abs(dy) === 2 ? y2 : y1;
+    const lx = Math.sign(x2 - cx);
+    const ly = Math.sign(y2 - cy);
+    const sx = x1 + 0.5 + Math.sign(cx - x1) * 0.28;
+    const sy = y1 + 0.5 + Math.sign(cy - y1) * 0.28;
+    const ex = x2 + 0.5 - lx * 0.3;
+    const ey = y2 + 0.5 - ly * 0.3;
+    return `<path d="M${sx},${sy} L${cx + 0.5},${cy + 0.5} L${ex},${ey}" ${style}/>`;
+  }
+  const len = Math.hypot(dx, dy) || 1;
+  const sx = x1 + 0.5 + (dx / len) * 0.28;
+  const sy = y1 + 0.5 + (dy / len) * 0.28;
+  const ex = x2 + 0.5 - (dx / len) * 0.3;
+  const ey = y2 + 0.5 - (dy / len) * 0.3;
+  return `<path d="M${sx},${sy} L${ex},${ey}" ${style}/>`;
+}
+
+const MARK_COLORS = { orange: '#f0a332', green: '#5fae3e', blue: '#3b82f6', red: '#e2453c' };
+function markerDefs(colors) {
+  return Object.entries(colors)
+    .map(([id, c]) => `<marker id="${id}" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="3.2" markerHeight="3.2" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="${c}"/></marker>`)
+    .join('');
+}
+
 function renderArrows() {
   let ev = view().ev;
   if (state.retry) ev = state.retry.shown && ev ? { lines: ev.lines.slice(0, 1) } : null;
   let svg = '';
   if (state.showArrows && ev && ev.lines.length) {
-    ARROW_COLORS.forEach((c, i) => {
-      svg += `<marker id="ah${i}" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="3.2" markerHeight="3.2" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="${c}"/></marker>`;
-    });
-    svg = `<defs>${svg}</defs>`;
+    svg += `<defs>${markerDefs({ ah0: 'var(--a1)', ah1: 'var(--a2)', ah2: 'var(--a3)' })}</defs>`;
     // Draw the weakest first so the best move stays on top.
     for (let i = Math.min(2, ev.lines.length - 1); i >= 0; i--) {
       const uci = ev.lines[i].uci;
-      const [x1, y1] = sqXY(uci.slice(0, 2));
-      const [x2, y2] = sqXY(uci.slice(2, 4));
-      const dx = x2 - x1;
-      const dy = y2 - y1;
-      const len = Math.hypot(dx, dy) || 1;
-      const sx = x1 + 0.5 + (dx / len) * 0.28;
-      const sy = y1 + 0.5 + (dy / len) * 0.28;
-      const ex = x2 + 0.5 - (dx / len) * 0.3;
-      const ey = y2 + 0.5 - (dy / len) * 0.3;
-      const w = [0.2, 0.16, 0.13][i];
-      svg += `<line x1="${sx}" y1="${sy}" x2="${ex}" y2="${ey}" stroke="${ARROW_COLORS[i]}" stroke-width="${w}" stroke-linecap="round" opacity="${[0.9, 0.8, 0.75][i]}" marker-end="url(#ah${i})"/>`;
+      svg += arrowSvg(uci.slice(0, 2), uci.slice(2, 4), ARROW_COLORS[i], [0.2, 0.16, 0.13][i], [0.9, 0.8, 0.75][i], 'ah' + i);
     }
   }
   $('arrows').innerHTML = svg;
+  renderMarks();
+}
+
+/* ---------- your own arrows and marked squares (right mouse button) ---------- */
+// Kept per position: they come back when you return to the same position.
+const marks = new Map(); // fen -> { arrows: Map<'e2e4', color>, squares: Map<'e4', color> }
+let annot = null; // right-button drag in progress: { from, color, to }
+
+function marksFor(fen, create) {
+  const key = fen.split(' ').slice(0, 4).join(' ');
+  if (!marks.has(key) && create) marks.set(key, { arrows: new Map(), squares: new Map() });
+  return marks.get(key);
+}
+
+function markColor(e) {
+  if (e.shiftKey) return 'green';
+  if (e.ctrlKey) return 'blue';
+  if (e.altKey) return 'red';
+  return null; // default: orange arrows, red squares
+}
+
+function renderMarks() {
+  const m = marksFor(view().fen, false);
+  let svg = `<defs>${markerDefs(Object.fromEntries(Object.entries(MARK_COLORS).map(([k, c]) => ['mk-' + k, c])))}</defs>`;
+  if (m) {
+    for (const [sq, c] of m.squares) {
+      const [x, y] = sqXY(sq);
+      svg += `<rect x="${x}" y="${y}" width="1" height="1" fill="${MARK_COLORS[c]}" opacity=".55"/>`;
+    }
+    for (const [k, c] of m.arrows) svg += arrowSvg(k.slice(0, 2), k.slice(2, 4), MARK_COLORS[c], 0.18, 0.85, 'mk-' + c);
+  }
+  if (annot && annot.to && annot.to !== annot.from) {
+    const c = annot.color || 'orange';
+    svg += arrowSvg(annot.from, annot.to, MARK_COLORS[c], 0.18, 0.6, 'mk-' + c);
+  }
+  $('marks').innerHTML = svg;
+}
+
+function clearMarks() {
+  const key = view().fen.split(' ').slice(0, 4).join(' ');
+  if (marks.delete(key)) renderMarks();
+}
+
+function startAnnot(e) {
+  const sq = squareAt(e.clientX, e.clientY);
+  if (!sq) return;
+  annot = { from: sq, to: sq, color: markColor(e) };
+}
+
+function moveAnnot(e) {
+  const sq = squareAt(e.clientX, e.clientY);
+  if (sq && sq !== annot.to) {
+    annot.to = sq;
+    renderMarks();
+  }
+}
+
+function endAnnot(e) {
+  const a = annot;
+  annot = null;
+  const to = squareAt(e.clientX, e.clientY) || a.to;
+  const m = marksFor(view().fen, true);
+  if (to === a.from) {
+    const c = a.color || 'red';
+    if (m.squares.get(to) === c) m.squares.delete(to);
+    else m.squares.set(to, c);
+  } else {
+    const k = a.from + to;
+    const c = a.color || 'orange';
+    if (m.arrows.get(k) === c) m.arrows.delete(k);
+    else m.arrows.set(k, c);
+  }
+  renderMarks();
 }
 
 function renderBadge() {
@@ -516,6 +614,36 @@ function renderEvalBar() {
   num.className = 'evalbar-num ' + (wp >= 50 ? 'w' : 'b');
 }
 
+function fmtClock(sec) {
+  if (sec == null) return '';
+  const h = Math.floor(sec / 3600);
+  const m = Math.floor((sec % 3600) / 60);
+  const s = sec % 60;
+  const ss = sec < 20 ? s.toFixed(1).padStart(4, '0') : String(Math.floor(s)).padStart(2, '0');
+  return h ? `${h}:${String(m).padStart(2, '0')}:${ss}` : `${m}:${ss}`;
+}
+
+// Clock of a player in the shown game position (the last value at or before it).
+function clockAt(color) {
+  const g = state.game;
+  if (!g.hasClocks) return null;
+  for (let i = state.ply - 1; i >= 0; i--) if (g.moves[i].color === color && g.moves[i].clock != null) return g.moves[i].clock;
+  return g.startClock;
+}
+
+function renderClocks() {
+  if (!state.game) return;
+  for (const [id, c] of [['clockTop', state.flipped ? 'w' : 'b'], ['clockBottom', state.flipped ? 'b' : 'w']]) {
+    const el = $(id);
+    if (!el) continue;
+    const v = clockAt(c);
+    el.textContent = fmtClock(v);
+    el.hidden = v == null;
+    const turn = state.game.fens[state.ply].split(' ')[1];
+    el.classList.toggle('run', turn === c && state.ply < state.game.moves.length);
+  }
+}
+
 function renderPlayers() {
   const h = state.game.headers;
   const t = T();
@@ -524,8 +652,9 @@ function renderPlayers() {
     const elo = c === 'w' ? h.WhiteElo : h.BlackElo;
     return `<span class="chip ${c}"></span><span>${esc(name || (c === 'w' ? t.white : t.black))}</span>${elo ? `<span class="elo">(${esc(elo)})</span>` : ''}`;
   };
-  $('playerTop').innerHTML = row(state.flipped ? 'w' : 'b') + `<span class="res">${esc(state.game.result.replace(/1\/2/g, '½'))}</span>`;
-  $('playerBottom').innerHTML = row(state.flipped ? 'b' : 'w');
+  $('playerTop').innerHTML = row(state.flipped ? 'w' : 'b') + `<span class="res">${esc(state.game.result.replace(/1\/2/g, '½'))}</span><span class="clock" id="clockTop" hidden></span>`;
+  $('playerBottom').innerHTML = row(state.flipped ? 'b' : 'w') + `<span class="clock" id="clockBottom" hidden></span>`;
+  renderClocks();
   $('accWName').textContent = h.White || t.white;
   $('accBName').textContent = h.Black || t.black;
 }
@@ -562,6 +691,8 @@ function renderReviewExtra(s) {
   const op = openingName(g.headers);
   const eco = g.headers.ECO && g.headers.ECO !== '?' ? g.headers.ECO : '';
   let html = '';
+  const det = gameDetails(g.headers);
+  if (det) html += `<div class="rh">${esc(t.details)}</div><div class="rl" style="grid-column:1/-1">${esc(det)}</div>`;
   if (op || eco) html += `<div class="rh">${esc(t.openingLbl)}</div><div class="rl" style="grid-column:1/-1">${esc([eco, op].filter(Boolean).join(' · '))}</div>`;
   const rate = (side) => {
     const r = estimateRating(s[side].accuracy);
@@ -580,6 +711,22 @@ function renderReviewExtra(s) {
   const keys = g.moves.filter((_m, i) => state.results[i] && KEY.has(state.results[i].cls)).length;
   html += `<div class="keynav"><button class="btn" data-key="-1" title="${esc(t.keyPrev)}">◀</button><span class="kc">${esc(t.keyMoments)}: ${keys}</span><button class="btn" data-key="1" title="${esc(t.keyNext)}">▶</button></div>`;
   $('reviewExtra').innerHTML = html;
+}
+
+function gameDetails(h) {
+  const t = T();
+  const parts = [];
+  const d = /^(\d{4})\.(\d{2})\.(\d{2})/.exec(h.Date || h.UTCDate || '');
+  if (d) parts.push(`${d[3]}.${d[2]}.${d[1]}`);
+  const tc = /^(\d+)(?:\+(\d+(?:\.\d+)?))?$/.exec(h.TimeControl || '');
+  if (tc) {
+    const base = +tc[1];
+    const inc = tc[2] ? +tc[2] : 0;
+    const mins = base >= 60 ? `${+(base / 60).toFixed(1)} ${t.minutes}` : `${base} ${t.seconds}`;
+    parts.push(inc ? `${mins} + ${inc}` : mins);
+  } else if (/^1\/\d+$/.test(h.TimeControl || '')) parts.push(`${+h.TimeControl.split('/')[1] / 86400} ${t.daysPerMove}`);
+  if (h.Termination) parts.push(h.Termination);
+  return parts.join(' · ');
 }
 
 function jumpKey(dir) {
@@ -685,7 +832,7 @@ function renderVarBar() {
   }
   const v = state.vr;
   if (!v || !v.moves.length) {
-    bar.innerHTML = `<p class="hint">♟ ${esc(t.varHint)}</p>`;
+    bar.innerHTML = `<p class="hint">♟ ${esc(t.varHint)}<br>🖱 ${esc(t.marksHint)}</p>`;
     return;
   }
   const chips = v.moves
@@ -718,7 +865,9 @@ function buildMoveList() {
 }
 
 function mvHtml(i) {
-  return `<span class="mv" data-i="${i}"><span class="ico pending" data-ico="${i}"></span><span>${esc(state.game.moves[i].san)}</span></span>`;
+  const m = state.game.moves[i];
+  const spent = m.spent != null ? `<span class="spent">${m.spent < 10 ? m.spent.toFixed(1) : Math.round(m.spent)}s</span>` : '';
+  return `<span class="mv" data-i="${i}"><span class="ico pending" data-ico="${i}"></span><span>${esc(m.san)}</span>${spent}</span>`;
 }
 
 function updateMoveIcon(i) {
@@ -748,6 +897,7 @@ function renderMoveCursor() {
 }
 
 function renderPosition() {
+  renderClocks();
   renderBoard();
   renderArrows();
   renderBadge();
@@ -869,7 +1019,14 @@ async function tryMove(to) {
 let drag = null; // { from, el, moved, startX, startY }
 
 function onBoardDown(e) {
-  if (!state.game || e.button !== 0) return;
+  if (!state.game) return;
+  if (e.button === 2) {
+    e.preventDefault();
+    startAnnot(e);
+    return;
+  }
+  if (e.button !== 0) return;
+  clearMarks();
   const sq = squareAt(e.clientX, e.clientY);
   if (!sq) return;
   e.preventDefault();
@@ -901,6 +1058,7 @@ function onBoardDown(e) {
 }
 
 function onPointerMove(e) {
+  if (annot) return moveAnnot(e);
   if (!drag) return;
   if (!drag.moved && Math.hypot(e.clientX - drag.startX, e.clientY - drag.startY) < 4) return;
   if (!drag.moved) {
@@ -915,6 +1073,7 @@ function onPointerMove(e) {
 }
 
 async function onPointerUp(e) {
+  if (annot && e.button === 2) return endAnnot(e);
   if (!drag) return;
   const d = drag;
   drag = null;
@@ -988,6 +1147,7 @@ $('graph').addEventListener('click', (e) => {
   const r = $('graph').getBoundingClientRect();
   go(Math.round(((e.clientX - r.left) / r.width) * state.game.moves.length));
 });
+$('board').addEventListener('contextmenu', (e) => e.preventDefault());
 $('board').addEventListener('pointerdown', (e) => {
   stopAuto();
   lineToken++;

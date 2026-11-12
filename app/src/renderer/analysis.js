@@ -67,7 +67,25 @@ export function loadGame(pgn) {
     fenAfter: m.after,
   }));
   const fens = [moves[0].fenBefore, ...moves.map((m) => m.fenAfter)];
-  return { headers, moves, fens, result };
+
+  // Clock times from {[%clk h:mm:ss]} comments, and the time spent on each move.
+  const clk = new Map();
+  for (const c of chess.getComments ? chess.getComments() : []) {
+    const m = /\[%clk\s+(\d+):(\d+):(\d+(?:\.\d+)?)\]/.exec(c.comment || '');
+    if (m) clk.set(c.fen, +m[1] * 3600 + +m[2] * 60 + +m[3]);
+  }
+  const tc = /^(\d+)(?:\+(\d+(?:\.\d+)?))?$/.exec(headers.TimeControl || '');
+  const startClock = tc ? +tc[1] : null;
+  const inc = tc && tc[2] ? +tc[2] : 0;
+  const last = { w: startClock, b: startClock };
+  moves.forEach((m) => {
+    const v = clk.get(m.fenAfter);
+    m.clock = v == null ? null : v;
+    if (v != null && last[m.color] != null) m.spent = Math.max(0, last[m.color] - v + inc);
+    if (v != null) last[m.color] = v;
+  });
+  const hasClocks = moves.some((m) => m.clock != null);
+  return { headers, moves, fens, result, hasClocks, startClock };
 }
 
 // Evaluation for a position where the game is over (no engine needed). Returns null otherwise.

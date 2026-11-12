@@ -1,7 +1,7 @@
 {
   "name": "chess-analyzer-pro",
   "productName": "Chess Analyzer Pro",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Free chess game analysis software with the Stockfish engine built in",
   "main": "src/main.js",
   "license": "GPL-3.0-or-later",

@@ -31,6 +31,9 @@ export function isFinished(game) {
 
 export function buildPgn(game, link) {
   const h = { ...game.pgnHeaders };
+  Object.keys(h).forEach((k) => {
+    if (h[k] == null || h[k] === '') delete h[k];
+  });
   const fen = h.FEN && h.FEN !== START ? h.FEN : null;
   delete h.FEN;
   delete h.SetUp;
@@ -44,9 +47,26 @@ export function buildPgn(game, link) {
     tags.FEN = fen;
   }
   if (link) tags.Link = link;
+  // Make sure a date is always present (taken from the end of the game when missing).
+  if ((!tags.Date || tags.Date === '????.??.??') && game.endTime) {
+    const d = new Date(game.endTime * 1000);
+    tags.Date = `${d.getUTCFullYear()}.${String(d.getUTCMonth() + 1).padStart(2, '0')}.${String(d.getUTCDate()).padStart(2, '0')}`;
+  }
   const keys = [...order, ...Object.keys(tags).filter((k) => !order.includes(k))];
   const quote = (v) => String(v).replace(/\\/g, '\\\\').replace(/"/g, '\\"');
   const head = keys.map((k) => `[${k} "${quote(tags[k])}"]`).join('\n');
+
+  // Remaining clock after every move (Chess.com gives it in tenths of a second).
+  const stamps = String(game.moveTimestamps || '').split(',').filter((x) => x !== '').map(Number);
+  const clk = (i) => {
+    const v = stamps[i];
+    if (!Number.isFinite(v)) return '';
+    const sec = v / 10;
+    const h = Math.floor(sec / 3600);
+    const m = Math.floor((sec % 3600) / 60);
+    const s = (sec % 60).toFixed(1);
+    return ` {[%clk ${h}:${String(m).padStart(2, '0')}:${s.padStart(4, '0')}]}`;
+  };
 
   const sans = chess.history();
   const firstBlack = !!fen && fen.split(' ')[1] === 'b';
@@ -56,7 +76,7 @@ export function buildPgn(game, link) {
     const white = firstBlack ? i % 2 === 1 : i % 2 === 0;
     if (white) parts.push(`${num}.`);
     else if (i === 0) parts.push(`${num}...`);
-    parts.push(san);
+    parts.push(san + clk(i));
     if (!white) num++;
   });
   parts.push(tags.Result);

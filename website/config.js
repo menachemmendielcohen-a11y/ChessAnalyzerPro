@@ -11,7 +11,7 @@
  */
 window.CAP_CONFIG = {
   // Current version of the Windows program / גרסת התוכנה הנוכחית
-  version: '1.1.0',
+  version: '1.2.0',
 
   // The installer (GitHub Releases, always the latest version) / קובץ ההתקנה (GitHub Releases, תמיד הגרסה האחרונה)
   downloadUrl: 'https://github.com/menachemmendielcohen-a11y/ChessAnalyzerPro/releases/latest/download/ChessAnalyzerProSetup.exe',
