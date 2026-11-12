@@ -1,0 +1,10 @@
+node_modules/
+app/dist/
+app/release/
+app/engine/stockfish.exe
+app/src/renderer/bundle.js
+tools/shots/
+tools/site-url.txt
+extension-store.zip
+*.log
+website/downloads/

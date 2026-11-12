@@ -1,0 +1,15 @@
+/* Chess Analyzer Pro Downloader - button styles. GPL-3.0-or-later. */
+#cap-download-btn {
+  position: fixed; z-index: 2147483000; bottom: 22px; left: 22px;
+  display: inline-flex; align-items: center; gap: 10px;
+  padding: 10px 18px 10px 12px; border: 0; border-radius: 999px; cursor: pointer;
+  font: 700 15px/1.2 "Segoe UI", Arial, sans-serif; color: #10200a;
+  background: linear-gradient(135deg, #9bd35c, #6fae3c);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, .45); transition: transform .12s, filter .12s;
+}
+#cap-download-btn:hover { transform: translateY(-2px); filter: brightness(1.07); }
+#cap-download-btn:focus-visible { outline: 3px solid #fff; outline-offset: 2px; }
+#cap-download-btn img { width: 28px; height: 28px; border-radius: 7px; }
+#cap-download-btn[data-state="busy"] { opacity: .8; cursor: progress; }
+#cap-download-btn[data-state="warn"] { background: #f0b93a; }
+#cap-download-btn[data-state="error"] { background: #e2574c; color: #fff; }

@@ -1,0 +1,10 @@
+{
+  "extName": { "message": "Chess Analyzer Pro – הורדת משחקים" },
+  "extDesc": { "message": "מוסיף כפתור למשחקים שהסתיימו ב־Chess.com ושומר את המשחק כקובץ PGN, מוכן לפתיחה ב־Chess Analyzer Pro." },
+  "btnDownload": { "message": "הורדת המשחק (PGN)" },
+  "btnTitle": { "message": "שמירת המשחק שהסתיים כקובץ PGN עבור Chess Analyzer Pro" },
+  "btnWorking": { "message": "מכין את הקובץ…" },
+  "btnDone": { "message": "נשמר ✓ פתחו אותו ב־Chess Analyzer Pro" },
+  "errUnfinished": { "message": "המשחק עדיין לא הסתיים – אפשר להוריד רק משחקים שהסתיימו" },
+  "errFailed": { "message": "לא הצלחנו להוריד את המשחק. נסו שוב" }
+}

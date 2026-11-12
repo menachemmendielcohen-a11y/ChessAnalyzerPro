@@ -1,0 +1,10 @@
+{
+  "extName": { "message": "Chess Analyzer Pro – PGN Downloader" },
+  "extDesc": { "message": "Adds a button to finished Chess.com games that saves the game as a PGN file, ready to open in Chess Analyzer Pro." },
+  "btnDownload": { "message": "Download game (PGN)" },
+  "btnTitle": { "message": "Save this finished game as a PGN file for Chess Analyzer Pro" },
+  "btnWorking": { "message": "Preparing the file…" },
+  "btnDone": { "message": "Saved ✓ Open it in Chess Analyzer Pro" },
+  "errUnfinished": { "message": "This game is not finished yet – only finished games can be downloaded" },
+  "errFailed": { "message": "Could not download this game. Please try again" }
+}

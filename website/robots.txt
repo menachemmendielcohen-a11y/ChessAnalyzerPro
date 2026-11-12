@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://menachemmendielcohen-a11y.github.io/ChessAnalyzerPro/sitemap.xml
