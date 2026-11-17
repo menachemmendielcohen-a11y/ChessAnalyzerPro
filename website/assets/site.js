@@ -50,8 +50,20 @@
     box.textContent = '';
     box.appendChild(f);
     box.classList.add('has-video');
+  } else if (box && isLocal(cfg.videoUrl)) {
+    // No YouTube link: play the video file that is hosted on this site.
+    var v = document.createElement('video');
+    v.controls = true;
+    v.preload = 'metadata';
+    v.playsInline = true;
+    v.src = root + cfg.videoUrl;
+    if (isLocal(cfg.videoPoster)) v.poster = root + cfg.videoPoster;
+    v.setAttribute('aria-label', box.getAttribute('data-title') || 'Chess Analyzer Pro');
+    box.textContent = '';
+    box.appendChild(v);
+    box.classList.add('has-video');
   }
 
-  var y = document.getElementById('year');
+  var y =document.getElementById('year');
   if (y) y.textContent = new Date().getFullYear();
 })();

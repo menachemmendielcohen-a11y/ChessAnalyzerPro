@@ -22,7 +22,12 @@ window.CAP_CONFIG = {
   // The extension as a ZIP for manual installation / התוסף כקובץ ZIP להתקנה ידנית
   extensionZipUrl: 'https://github.com/menachemmendielcohen-a11y/ChessAnalyzerPro/releases/latest/download/ChessAnalyzerPro-Chrome-Extension.zip',
 
-  // YouTube tutorial: full link or just the video ID / סרטון ההדרכה: קישור מלא או מזהה הסרטון
+  // Tutorial video file hosted on this site (used when no YouTube link is set) / קובץ סרטון ההדרכה באתר (בשימוש כשאין קישור YouTube)
+  videoUrl: 'assets/tutorial.mp4',
+  videoPoster: 'assets/tutorial-poster.jpg',
+
+  // YouTube tutorial: full link or just the video ID. When set, it replaces the video file above.
+  // סרטון ההדרכה ב־YouTube: קישור מלא או מזהה. כשמוגדר – מחליף את קובץ הסרטון שלמעלה.
   youtubeUrl: '',
 
   // Source code (required by the GPLv3 licence) / קוד המקור (נדרש לפי רישיון GPLv3)

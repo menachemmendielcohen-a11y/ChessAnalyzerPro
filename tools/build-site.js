@@ -165,6 +165,7 @@ const L = {
       videoTitle: 'Video tutorial',
       videoLead: 'A short video that walks through everything: installing, downloading a game from Chess.com and analysing it.',
       videoSoon: 'The tutorial video will be added here soon',
+      videoNote: 'The video has Hebrew captions.',
       aboutTitle: 'A Stockfish chess analyzer – not the official Stockfish website',
       about: [
         'Looking for a free chess engine download? Chess Analyzer Pro is chess analysis software that ships with Stockfish, one of the strongest chess engines in the world. One installer sets up both the PGN analyzer and the engine, so there is no separate engine download and nothing to configure.',
@@ -312,6 +313,12 @@ function home(lang) {
     },
     { '@context': 'https://schema.org', '@type': 'WebSite', name: 'Chess Analyzer Pro', alternateName: 'ChessAnalyzerPro', url: SITE + '/', inLanguage: lang },
     {
+      '@context': 'https://schema.org', '@type': 'VideoObject',
+      name: `${h.videoTitle} – Chess Analyzer Pro`, description: h.videoLead,
+      thumbnailUrl: `${SITE}/assets/tutorial-poster.jpg`, uploadDate: '2026-11-17', duration: 'PT1M28S',
+      contentUrl: `${SITE}/assets/tutorial.mp4`, inLanguage: 'he',
+    },
+    {
       '@context': 'https://schema.org', '@type': 'FAQPage',
       mainEntity: h.faq.map(([q, a]) => ({ '@type': 'Question', name: q, acceptedAnswer: { '@type': 'Answer', text: a } })),
     },
@@ -347,7 +354,7 @@ function home(lang) {
 
 <section class="alt" id="video"><div class="wrap">
   <div class="section-head"><h2>${h.videoTitle}</h2><p class="muted">${h.videoLead}</p></div>
-  <div class="video" id="video-frame" data-title="${esc(h.videoTitle)} – Chess Analyzer Pro"><div><span class="play" aria-hidden="true">▶</span>${h.videoSoon}</div></div>
+  <div class="video" id="video-frame" data-title="${esc(h.videoTitle)} – Chess Analyzer Pro"><div><span class="play" aria-hidden="true">▶</span>${h.videoSoon}</div></div>${h.videoNote ? `\n  <p class="video-note muted">${h.videoNote}</p>` : ''}
 </div></section>
 
 <section><div class="wrap">
